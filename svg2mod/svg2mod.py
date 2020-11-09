@@ -563,6 +563,8 @@ class Svg2ModExport( object ):
 
         if items is None:
 
+            # self.layers is a map of KiCad layer name
+            # to list of found SVG groups of items to export.
             self.layers = {}
             for name in self.layer_map.keys():
                 self.layers[ name ] = None
@@ -576,11 +578,16 @@ class Svg2ModExport( object ):
                 continue
 
             for name in self.layers.keys():
-                #if re.search( name, item.name, re.I ):
-                if name == item.name:
-                    print( "Found SVG layer: {}".format( item.name ) )
+
+                # Includes layers with the layer name prefix.
+                # Workaround for complex shapes by creating multiple paths.
+                if item.name and item.name.startswith( name ):
+                    print( "Found SVG layer: {}. Mapped layer: {}".format( item.name, name ) )
                     self.imported.svg.items.append( item )
-                    self.layers[ name ] = item
+
+                    if not self.layers[ name ]:
+                        self.layers[ name ] = []
+                    self.layers[ name ].append( item )
                     break
             else:
                 self._prune( item.items )
@@ -664,14 +671,16 @@ class Svg2ModExport( object ):
             front,
         )
 
-        for name, group in self.layers.items():
+        for name, groups in self.layers.items():
 
-            if group is None: continue
+            if groups is None or not group: continue
 
-            layer = self._get_layer_name( name, front )
+            for group in groups:
 
-            #print( "  Writing layer: {}".format( name ) )
-            self._write_items( group.items, layer, not front )
+                layer = self._get_layer_name( name, front )
+
+                #print( "  Writing layer: {}".format( name ) )
+                self._write_items( group.items, layer, not front )
 
         self._write_module_footer( front )
 
